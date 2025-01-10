@@ -576,14 +576,14 @@ else:
         with open(ref_imgs_path, 'w') as f:
             torch.save(ref_imgs, ref_imgs_path)  
 
-print('##prepare output video strame##')
+print('##(4)prepare output video strame##')
 F_frame = cv2.imread(ori_background_frames_path[0])     
 frame_h, frame_w = F_frame.shape[:-1]
 out_stream = cv2.VideoWriter('{}/result.avi'.format(temp_dir), cv2.VideoWriter_fourcc(*'DIVX'), fps,
                              (frame_w, frame_h))  # +frame_h*3
 
 
-##generate final face image and output video##
+print('##generate final face image and output video##  百分之99时间都是这一步')
 input_mel_chunks_len = len(mel_chunks)
 input_frame_sequence = torch.arange(input_vid_len).tolist()
 #the input template video may be shorter than audio
