@@ -1,5 +1,6 @@
 # 安装: 
 # 安装: conda install -c conda-forge dlib
+# 这个代码做了colab 适配,  colab也能跑.
 
 
 
