@@ -1,8 +1,9 @@
 # 安装: 
 # 安装: conda install -c conda-forge dlib
+#  pip install mediapipe==0.10.9
 # 这个代码做了colab 适配,  colab也能跑.
-
-
+# 原始的训练代码在: https://github.com/Weizhi-Zhong/IP_LAP
+# 做了cuda, cpu的适配, 在本地可以直接跑. 用来学习整个结构.
 
 import numpy as np
 import cv2, os, argparse
@@ -31,16 +32,13 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 class a():
     pass
 args=a()
-args.input='./0.jpg'
+args.input='0.jpg'
 args.audio='./audio/audio2.wav'
 args.output_dir='./result'
-args.input='./0.jpg'
 args.static='True'
 args.landmark_gen_checkpoint_path='./checkpoints/landmark_checkpoint.pth'
 args.renderer_checkpoint_path='./checkpoints/renderer_T1_ref_N3.pth'
-args.input='./0.jpg'
-args.input='./0.jpg'
-args.input='./0.jpg'
+
 ref_img_N = 25
 Nl = 15
 T = 5
@@ -61,7 +59,7 @@ os.makedirs(temp_dir, exist_ok=True)
 input_video_path = args.input
 input_audio_path = args.audio
 
-
+# mediapipe给的索引
 # the following is the index sequence for fical landmarks detected by mediapipe
 ori_sequence_idx = [162, 127, 234, 93, 132, 58, 172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397, 288,
                     361, 323, 454, 356, 389,  #
@@ -73,7 +71,7 @@ ori_sequence_idx = [162, 127, 234, 93, 132, 58, 172, 136, 150, 149, 176, 148, 15
                     362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382,  #
                     61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 146,  #
                     78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95]
-
+# 画草图的连线.
 # the following is the connections of landmarks for drawing sketch image
 FACEMESH_LIPS = frozenset([(61, 146), (146, 91), (91, 181), (181, 84), (84, 17),
                            (17, 314), (314, 405), (405, 321), (321, 375),
@@ -108,12 +106,13 @@ FACEMESH_FACE_OVAL = frozenset([(389, 356), (356, 454),
 FACEMESH_NOSE = frozenset([(168, 6), (6, 197), (197, 195), (195, 5), (5, 4),
                            (4, 45), (45, 220), (220, 115), (115, 48),
                            (4, 275), (275, 440), (440, 344), (344, 278), ])
+# 全部连线的并
 FACEMESH_CONNECTION = frozenset().union(*[
     FACEMESH_LIPS, FACEMESH_LEFT_EYE, FACEMESH_LEFT_EYEBROW, FACEMESH_RIGHT_EYE,
     FACEMESH_RIGHT_EYEBROW, FACEMESH_FACE_OVAL, FACEMESH_NOSE
 ])
 
-FACEMESH_FULL = frozenset().union(*[
+FACEMESH_FULL =      frozenset().union(*[
     FACEMESH_LIPS, FACEMESH_LEFT_EYE, FACEMESH_LEFT_EYEBROW, FACEMESH_RIGHT_EYE,
     FACEMESH_RIGHT_EYEBROW, FACEMESH_FACE_OVAL, FACEMESH_NOSE
 ])
@@ -152,10 +151,22 @@ def swap_masked_region(target_img, src_img, mask): #function used in post-proces
     """From src_img crop masked region to replace corresponding masked region
        in target_img
     """  # swap_masked_region(src_frame, generated_frame, mask=mask_img)
+    #=========我们来测试做高斯模糊和不做模糊的效果哪个好.
+    
+    import  cv2
+    
     mask_img = cv2.GaussianBlur(mask, (21, 21), 11)
     mask1 = mask_img / 255
     mask1 = np.tile(np.expand_dims(mask1, axis=2), (1, 1, 3))
     img = src_img * mask1 + target_img * (1 - mask1)
+    cv2.imwrite('debug_with_blur.png',img)
+    
+    # mask_img = mask.reshape(mask.shape[:2]) #不加模糊
+    # mask1 = mask_img / 255
+    # mask1 = np.tile(np.expand_dims(mask1, axis=2), (1, 1, 3))
+    # img = src_img * mask1 + target_img * (1 - mask1)
+    # cv2.imwrite('debug_without_blur.png',img)
+    
     return img.astype(np.uint8)
 
 def merge_face_contour_only(src_frame, generated_frame, face_region_coord, fa): #function used in post-process
@@ -192,7 +203,7 @@ def load_model(model, path):
     checkpoint = _load(path)
     s = checkpoint["state_dict"]
     new_s = {}
-    for k, v in s.items():
+    for k, v in s.items(): # 修改k,v 的名字
         if k[:6] == 'module':
             new_k=k.replace('module.', '', 1)
         else:
@@ -216,7 +227,7 @@ class LandmarkDict(dict):# Makes a dictionary that behave like an object to repr
         self[name] = value
 print(" landmark_generator_model loaded from : ", landmark_gen_checkpoint_path)
 print(" renderer loaded from : ", renderer_checkpoint_path)
-landmark_generator_model = load_model(
+landmark_generator_model = load_model(   # =========加载第一个模型. 第一个模型是landmark模型,  输入frame, 然后生成人物的关键点信息.
     model=Landmark_transformer(T=T, d_model=512, nlayers=4, nhead=4, dim_feedforward=1024, dropout=0.1),
     path=landmark_gen_checkpoint_path)
 renderer = load_model(model=Renderer(), path=renderer_checkpoint_path)
@@ -226,7 +237,11 @@ print('Reading video frames ... from', input_video_path)
 if not os.path.isfile(input_video_path):
     raise ValueError('the input video file does not exist')
 elif input_video_path.split('.')[1] in ['jpg', 'png', 'jpeg']: #if input a single image for testing
-        ori_background_frames_path = [cv2.imread(input_video_path)]
+        ori_background_frames_path = [input_video_path]
+        file_name = os.path.splitext(os.path.basename(input_video_path))[0]
+        folder_path = os.path.join(input_video_run_path, file_name)
+        os.makedirs(folder_path,exist_ok=True)
+        input_vid_len = len(ori_background_frames_path)
 else:
     file_name = os.path.splitext(os.path.basename(input_video_path))[0]
     folder_path = os.path.join(input_video_run_path, file_name)
@@ -276,7 +291,7 @@ else:
 
 print('##(2) Extracting audio####')
 if not input_audio_path.endswith('.wav'):
-    command = 'ffmpeg -y -i {} -strict -2 {}'.format(input_audio_path, '{}/temp.wav'.format(temp_dir))
+    command = 'ffmpeg -y -i {} -strict -2 {}'.format(input_audio_path, '{}/temp.wav'.format(temp_dir))  # 先把其他格式音频转化为wav
     subprocess.call(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     input_audio_path = '{}/temp.wav'.format(temp_dir)
 wav = audio.load_wav(input_audio_path, 16000)
@@ -288,13 +303,13 @@ mel = np.hstack([mel, extra_right_columns])
 ##read audio mel into list###
 mel_chunks = []  # each mel chunk correspond to 5 video frames, used to generate one video frame
 fps = 25
-mel_idx_multiplier = 80. / fps
+mel_idx_multiplier = 80. / fps  # 音频一秒80个值.
 mel_chunk_idx = 0
 while 1:
-    start_idx = int(mel_chunk_idx * mel_idx_multiplier)
+    start_idx = int(mel_chunk_idx * mel_idx_multiplier)  
     if start_idx + mel_step_size > len(mel[0]):
         break
-    mel_chunks.append(mel[:, start_idx: start_idx + mel_step_size])  # mel for generate one video frame
+    mel_chunks.append(mel[:, start_idx: start_idx + mel_step_size])  # mel for generate one video frame   每一个mel块是长度16, 也就是0.2秒一个特征.
     mel_chunk_idx += 1
 # mel_chunks = mel_chunks[:(len(mel_chunks) // T) * T]
 
@@ -313,36 +328,40 @@ Nl_pose_path = os.path.join(folder_path, 'Nl_pose.pth')
 ref_img_sketches_path =  os.path.join(folder_path, 'ref_img_sketches.pth')
 ref_imgs_path = os.path.join(folder_path, 'ref_imgs.pth') 
 
-if os.path.exists(pose_landmarks_file_path):
-    with open(pose_landmarks_file_path, 'r') as file:
-        pose_landmarks_batch = []
-        lines = file.readlines()
-        for line in lines:
-            parts = line.strip().split(':')
-            idx = int(parts[0].split()[-1])  
-            x_str = parts[1].split('=')[1].strip().split(',')[0].strip()
-            y_str = parts[1].split('=')[2].strip().strip()
-            x = float(x_str)
-            y = float(y_str)        
-            pose_landmarks_batch.append([idx, x, y])
-            if len(pose_landmarks_batch) == 74:
-                all_pose_landmarks.append(pose_landmarks_batch)
-                pose_landmarks_batch = []  
-        if pose_landmarks_batch:
-            all_pose_landmarks.append(pose_landmarks_batch)
-if os.path.exists(face_crop_results_path):
-    with open(face_crop_results_path, 'rb') as f:
-        face_crop_results = pickle.load(f)
-if os.path.exists(Nl_content_path):
-    Nl_content = torch.load(Nl_content_path)
-if os.path.exists(Nl_pose_path):
-    Nl_pose = torch.load(Nl_pose_path)
-if os.path.exists(ref_img_sketches_path):
-    ref_img_sketches = torch.load(ref_img_sketches_path)
-if os.path.exists(ref_imgs_path):
-    ref_imgs = torch.load(ref_imgs_path)
 
-else:
+
+
+if 0: #=========加载旧的缓存. 这里面为了准确,我们每次都重新生成.
+    if os.path.exists(pose_landmarks_file_path):
+        with open(pose_landmarks_file_path, 'r') as file:
+            pose_landmarks_batch = []
+            lines = file.readlines()
+            for line in lines:
+                parts = line.strip().split(':')
+                idx = int(parts[0].split()[-1])  
+                x_str = parts[1].split('=')[1].strip().split(',')[0].strip()
+                y_str = parts[1].split('=')[2].strip().strip()
+                x = float(x_str)
+                y = float(y_str)        
+                pose_landmarks_batch.append([idx, x, y])
+                if len(pose_landmarks_batch) == 74:
+                    all_pose_landmarks.append(pose_landmarks_batch)
+                    pose_landmarks_batch = []  
+            if pose_landmarks_batch:
+                all_pose_landmarks.append(pose_landmarks_batch)
+    if os.path.exists(face_crop_results_path):
+        with open(face_crop_results_path, 'rb') as f:
+            face_crop_results = pickle.load(f)
+    if os.path.exists(Nl_content_path):
+        Nl_content = torch.load(Nl_content_path)
+    if os.path.exists(Nl_pose_path):
+        Nl_pose = torch.load(Nl_pose_path)
+    if os.path.exists(ref_img_sketches_path):
+        ref_img_sketches = torch.load(ref_img_sketches_path)
+    if os.path.exists(ref_imgs_path):
+        ref_imgs = torch.load(ref_imgs_path)
+
+if 1:
     detector = dlib.get_frontal_face_detector()
     with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=4, refine_landmarks=True, 
         min_detection_confidence=0.5, min_tracking_confidence=0.5) as face_mesh:
@@ -352,18 +371,18 @@ else:
             landmarks_file_path = os.path.join(os.path.dirname(frame_path), frame_name + '.txt')
             full_frame = cv2.imread(frame_path)
             h, w = full_frame.shape[0], full_frame.shape[1]
-            gray = cv2.cvtColor(full_frame, cv2.COLOR_BGR2GRAY)
-            faces = detector(gray, 0)
+            gray = cv2.cvtColor(full_frame, cv2.COLOR_BGR2GRAY) # detector函数返回脸的box
+            faces = detector(gray, 0) # face= ([face.left, face.top] , [face.right,face.bottom] ) 对于脸这个box
             for face in faces:
-                x1, y1, x2, y2 = max(0,int(face.left()-(face.right()-face.left())*0.1)), max(0,int(face.top()+(face.top()-face.bottom())*0.3)), min(w,int(face.right()+(face.right()-face.left())*0.1)), min(h,int(face.bottom()-(face.top()-face.bottom())*0.3))
+                x1, y1, x2, y2 = max(0,int(face.left()-(face.right()-face.left())*0.1)), max(0,int(face.top()+(face.top()-face.bottom())*0.3)), min(w,int(face.right()+(face.right()-face.left())*0.1)), min(h,int(face.bottom()-(face.top()-face.bottom())*0.3))   # x1,y1,x2,y2是对face向外做了一圈拓展. 左拓展宽度0.1, 右拓展0.1, 上拓展高0.3 下拓展高0.3
                 face_image = full_frame[y1:y2, x1:x2]
-                results = face_mesh.process(cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB))
+                results = face_mesh.process(cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)) # 找到面部的特征. 记作results
                 if results.multi_face_landmarks:
                     landmarks_str = ''
                     face_landmarks = results.multi_face_landmarks[0]
                     for id, landmark in enumerate(face_landmarks.landmark):
-                        landmark.x = (landmark.x * (x2 - x1)) / full_frame.shape[1] + x1 / full_frame.shape[1]
-                        landmark.y = (landmark.y * (y2 - y1)) / full_frame.shape[0] + y1 / full_frame.shape[0]
+                        landmark.x = (landmark.x * (x2 - x1)) / full_frame.shape[1] + x1 / full_frame.shape[1]  # landmark是一个比例值对于人脸.所以我们这里重新算比例对于原图(整个frame图)的位置.
+                        landmark.y = (landmark.y * (y2 - y1)) / full_frame.shape[0] + y1 / full_frame.shape[0] # y也是同理计算.
                         landmarks_str += f'id:{id},x:{landmark.x},y:{landmark.y}\n'
                     with open(landmarks_file_path, 'w') as file:
                         file.write(landmarks_str)
@@ -383,13 +402,13 @@ else:
                         raise NotImplementedError  # not detect face
                         continue  
             ## calculate the lip dist
-            dx = face_landmarks.landmark[lip_index[0]].x - face_landmarks.landmark[lip_index[1]].x
-            dy = face_landmarks.landmark[lip_index[0]].y - face_landmarks.landmark[lip_index[1]].y
-            dist = np.linalg.norm((dx, dy))
+            dx = face_landmarks.landmark[lip_index[0]].x - face_landmarks.landmark[lip_index[1]].x          # 嘴的宽度
+            dy = face_landmarks.landmark[lip_index[0]].y - face_landmarks.landmark[lip_index[1]].y          # 嘴的高度
+            dist = np.linalg.norm((dx, dy)) # 
             lip_dists.append((frame_idx, dist))
 
             # (1)get the marginal landmarks to crop face
-            x_min,x_max,y_min,y_max = 999,-999,999,-999
+            x_min,x_max,y_min,y_max = 999,-999,999,-999 #计算边界. 注意这些边界都是比例值. 从0到1
             for idx, landmark in enumerate(face_landmarks.landmark):
                 if idx in all_landmarks_idx:
                     if landmark.x < x_min:
@@ -401,7 +420,7 @@ else:
                     if landmark.y > y_max:
                         y_max = landmark.y
             ##########plus some pixel to the marginal region##########
-            #note:the landmarks coordinates returned by mediapipe range 0~1
+            #note:the landmarks coordinates returned by mediapipe range 0~1 #往外圈拓展25像素.
             plus_pixel = 25
             x_min = max(x_min - plus_pixel / w, 0)
             x_max = min(x_max + plus_pixel / w, 1)
@@ -446,7 +465,7 @@ else:
             # normalize landmarks to 0~1
             y_min, y_max, x_min, x_max = face_crop_results[frame_idx][1]  #bounding boxes
             pose_landmarks = [ \
-                [idx, (x - x_min) / (x_max - x_min), (y - y_min) / (y_max - y_min)] for idx, x, y in pose_landmarks]
+                [idx, (x - x_min) / (x_max - x_min), (y - y_min) / (y_max - y_min)] for idx, x, y in pose_landmarks] # 把landmarks 都归一化到0,1之间. 其中0,0表示人脸box的左上角, 1,1表示人脸的右下角.
             content_landmarks = [ \
                 [idx, (x - x_min) / (x_max - x_min), (y - y_min) / (y_max - y_min)] for idx, x, y in content_landmarks]
             all_pose_landmarks.append(pose_landmarks)
@@ -517,7 +536,7 @@ else:
             [Nl_content_landmarks[idx][i][2] for i in range(len(Nl_content_landmarks[idx]))])  # y
     Nl_content = Nl_content.unsqueeze(0)  # (1,Nl, 2, 57)
     Nl_pose = Nl_pose.unsqueeze(0)  # (1,Nl,2,74)
-
+# 2025-01-11,23点30  NL是normal layer, 也就是 参考模型. 风格迁移里面的风格不分.
     if not os.path.exists(Nl_content_path):
         with open(Nl_content_path, 'w') as f:
             torch.save(Nl_content, Nl_content_path)
@@ -558,7 +577,7 @@ else:
     for frame_idx in range(ref_img_full_face_landmarks.shape[0]):  # N
         full_landmarks = ref_img_full_face_landmarks[frame_idx]  # (2,131)
         h, w = ref_imgs[frame_idx].shape[0], ref_imgs[frame_idx].shape[1]
-        drawn_sketech = np.zeros((int(h * img_size / min(h, w)), int(w * img_size / min(h, w)), 3))
+        drawn_sketech = np.zeros((int(h * img_size / min(h, w)), int(w * img_size / min(h, w)), 3)) # 面部图片变成128左右大小
         mediapipe_format_landmarks = [LandmarkDict(ori_sequence_idx[full_face_landmark_sequence[idx]], full_landmarks[0, idx],
                                                    full_landmarks[1, idx]) for idx in range(full_landmarks.shape[1])]
         drawn_sketech = draw_landmarks(drawn_sketech, mediapipe_format_landmarks, connections=FACEMESH_CONNECTION,
@@ -640,7 +659,7 @@ for batch_idx, batch_start_idx in tqdm(enumerate(range(0, input_mel_chunks_len -
     T_predict_full_landmarks = torch.cat([T_pose, predict_content], dim=2).cpu().numpy()  # (1*T,2,131)
  
     #T_predict_full_landmarks_n = torch.cat([T_pose, T_content], dim=2).cpu().numpy()  # (1*T,2,131)
-
+#==========得到了特征.
     #1.draw target sketch
     T_target_sketches = []
     for frame_idx in range(T):
@@ -662,23 +681,37 @@ for batch_idx, batch_start_idx in tqdm(enumerate(range(0, input_mel_chunks_len -
     target_sketches = T_target_sketches.unsqueeze(0).to(device)  # (1,T,3,128, 128)
 
     # 2.lower-half masked face
-    ori_face_img = torch.FloatTensor(cv2.resize(T_crop_face[2], (img_size, img_size)) / 255).permute(2, 0, 1).unsqueeze(
+    ori_face_img = torch.FloatTensor(cv2.resize(T_crop_face[len(T_crop_face)//2], (img_size, img_size)) / 255).permute(2, 0, 1).unsqueeze(
         0).unsqueeze(0).to(device)  #(1,1,3,H, W)
 
     # 3. render the full face
     # require (1,1,3,H,W)   (1,T,3,H,W)  (1,N,3,H,W)   (1,N,3,H,W)  (1,1,1,h,w)
     # return  (1,3,H,W)
-    with torch.no_grad():
+    with torch.no_grad(): # 核心参数就是target_sketches, 利用上一个网络得到的参数.
         generated_face, _, _, _ = renderer(ori_face_img, target_sketches, ref_imgs, ref_img_sketches,
                                                     T_mels[:, 2].unsqueeze(0))  # T=1
-    gen_face = (generated_face.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)  # (H,W,3)
+    gen_face = (generated_face.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)  # (H,W,3) 生成的嘴128像素.
 
     # 4. paste each generated face
     y1, y2, x1, x2 = T_ori_face_coordinates[2][1]  # coordinates of face bounding box
-    original_background = T_input_frame[2].copy()
-    sharp_kernel = np.array([[0, -1, 0],[-1, 5, -1],[0, -1, 0]], np.float32) 
-    gen_face = cv2.filter2D(gen_face, -1, sharp_kernel)
-    T_input_frame[2][y1:y2, x1:x2] = cv2.resize(gen_face,(x2 - x1, y2 - y1))  #resize and paste generated face
+    original_background = T_input_frame[len(T_crop_face)//2].copy() # 原始的脸.
+    
+    # 查看嘴的生成:
+    # cv2.imwrite( "debug0原始128.png",gen_face)  # 可以看到生成的是整个脸!!!!!!!!!!!!
+    # aaaa=cv2.resize(gen_face,(x2 - x1, y2 - y1))  #======
+    # cv2.imwrite( "debug0.png",aaaa)  # 可以看到生成的是整个脸!!!!!!!!!!!!
+    
+    # sharp_kernel = np.array([[0, -1, 0],[-1, 5, -1],[0, -1, 0]], np.float32) 
+    # gen_face = cv2.filter2D(gen_face, -1, sharp_kernel) #=做了一下锐化.
+    
+    
+    
+    # 查看嘴的生成:
+    # aaaa=cv2.resize(gen_face,(x2 - x1, y2 - y1))
+    # cv2.imwrite( "debug1.png",aaaa)  # 可以看到生成的是整个脸!!!!!!!!!!!!
+    
+    
+    T_input_frame[2][y1:y2, x1:x2] = cv2.resize(gen_face,(x2 - x1, y2 - y1),interpolation=cv2.INTER_LANCZOS4)  #resize and paste generated face  # 变回去.
     # 5. post-process
     full = merge_face_contour_only(original_background, T_input_frame[2], T_ori_face_coordinates[2][1],fa)   #(H,W,3)
     # 6.output

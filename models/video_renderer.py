@@ -21,12 +21,12 @@ class AdaINLayer(nn.Module):
         self.mlp_gamma = nn.Linear(nhidden, input_nc, bias=use_bias)
         self.mlp_beta = nn.Linear(nhidden, input_nc, bias=use_bias)
 
-    def forward(self, input, modulation_input):
+    def forward(self, input, modulation_input): # molulation 是风格, 也就是landmark 图
 
         # Part 1. generate parameter-free normalized activations
         normalized = self.InstanceNorm2d(input)
 
-        # Part 2. produce scaling and bias conditioned on feature
+        # Part 2. produce scaling and bias conditioned on feature # -------landmark上用神经网络生成 gamma, beta
         modulation_input = modulation_input.view(modulation_input.size(0), -1)
         actv = self.mlp_shared(modulation_input)
         gamma = self.mlp_gamma(actv)
@@ -61,7 +61,7 @@ class AdaIN(torch.nn.Module):
 
 
 
-
+# spade: 一个网络输入图片, 输出一个图片shape 的 gamma, beta. 表示各个像素的归一化
 class SPADELayer(torch.nn.Module):
     def __init__(self, input_channel, modulation_channel, hidden_size=256, kernel_size=3, stride=1, padding=1):
         super(SPADELayer, self).__init__()
@@ -88,7 +88,7 @@ class SPADE(torch.nn.Module):
         super(SPADE, self).__init__()
         self.conv_1 = torch.nn.Conv2d(num_channel, num_channel, kernel_size=kernel_size, stride=stride, padding=padding)
         self.conv_2 = torch.nn.Conv2d(num_channel, num_channel, kernel_size=kernel_size, stride=stride, padding=padding)
-        self.leaky_relu = torch.nn.LeakyReLU(0.2)
+        self.leaky_relu = torch.nn.LeakyReLU(0.2) # spadelayer是图像归一化层.
         self.spade_layer_1 = SPADELayer(num_channel, num_channel_modulation, hidden_size, kernel_size=kernel_size,
                                         stride=stride, padding=padding)
         self.spade_layer_2 = SPADELayer(num_channel, num_channel_modulation, hidden_size, kernel_size=kernel_size,
@@ -197,7 +197,7 @@ class DenseFlowNetwork(torch.nn.Module):
         # SPADE Blocks
         self.spade_layer_1 = SPADE(256, num_channel_modulation, hidden_size)
         self.spade_layer_2 = SPADE(256, num_channel_modulation, hidden_size)
-        self.pixel_shuffle_1 = torch.nn.PixelShuffle(2)
+        self.pixel_shuffle_1 = torch.nn.PixelShuffle(2) # 上采样
         self.spade_layer_4 = SPADE(64, num_channel_modulation, hidden_size)
 
         # Final Convolutional Layer
@@ -294,8 +294,8 @@ class TranslationNetwork(torch.nn.Module):
         self.conv2_relu = torch.nn.ReLU()
 
         # Decoder
-        self.spade_1 = SPADE(num_channel=256, num_channel_modulation=256)
-        self.adain_1 = AdaIN(256,512)
+        self.spade_1 = SPADE(num_channel=256, num_channel_modulation=256) 
+        self.adain_1 = AdaIN(256,512)# AdaIN接收内容输入x和风格输入y，并简单地对齐x的通道平均值和方差以匹配y的值。与BN、IN或CIN不同，AdaIN没有可学习的仿射参数。相反，它从样式输入自适应地计算仿射参数
         self.pixel_suffle_1 = nn.PixelShuffle(upscale_factor=2)
 
         self.spade_2 = SPADE(num_channel=64, num_channel_modulation=32)

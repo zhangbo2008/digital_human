@@ -7,16 +7,16 @@ class PositionalEmbedding(nn.Module):
     def __init__(self, d_model=512, max_len=512):
         super().__init__()
 
-        # Compute the positional encodings once in log space.
+        # Compute the positional encodings once in log space. # max_len 句子长度.
         pe = torch.zeros(max_len, d_model).float()
         pe.require_grad = False
 
         position = torch.arange(0, max_len).float().unsqueeze(1)
         div_term = (torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model)).exp()
 
-        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 0::2] = torch.sin(position * div_term) # position在dimension维度上进行div运算. 然后结果都进行sin化.
         pe[:, 1::2] = torch.cos(position * div_term)
-
+        # 最后pe是, 在dimension维度上, 一个sin一个cos交叉.
         pe = pe.unsqueeze(0)
         self.register_buffer('pe', pe)
 
@@ -72,7 +72,7 @@ def weight_init(m):
         nn.init.constant_(m.weight, 1)
         nn.init.constant_(m.bias, 0)
 
-
+# 使用transformer进行编码,效果是融合.
 class Fusion_transformer_encoder(nn.Module):
     def __init__(self,T, d_model, nlayers, nhead, dim_feedforward,  # 1024   128
                  dropout=0.1):
@@ -226,12 +226,12 @@ class Landmark_generator(nn.Module):
 
         #3. fuse embedding
         output_tokens=self.fusion_transformer(ref_embedding,mel_embedding,pose_embedding)
-
+# 1,25,512
         #4.output  landmark
         lip_embedding=output_tokens[:,N_l:N_l+T,:] #(B,T,dim)
         jaw_embedding=output_tokens[:,N_l+T:,:] #(B,T,dim)
         output_mouse_landmark=self.mouse_keypoint_map(lip_embedding)  ##(B,T,40*2)
-        output_jaw_landmark=self.jaw_keypoint_map(jaw_embedding)   ##(B,T,17*2)
+        output_jaw_landmark=self.jaw_keypoint_map(jaw_embedding)   ##(B,T,17*2) # 进行特征融合.
 
         predict_content=torch.reshape(torch.cat([output_jaw_landmark,output_mouse_landmark],dim=2),(B,T,-1,2))   #(B,T,57,2)
         predict_content=torch.cat([predict_content[i] for i in range(predict_content.size(0))],dim=0).permute(0,2,1)#(B*T,2,57)
