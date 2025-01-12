@@ -1,3 +1,4 @@
+colab:https://colab.research.google.com/drive/1gnL_pOfawbPyFmIUuhWEP2EvtIaom1a4#scrollTo=evkOpLFnRGLk
 # LIP_MASK：具有地标和外观先验的保持身份的说话人脸生成（CVPR 2023）
 
 CVPR2023论文“**I**dentity-**P**reserving Talking Face Generation with **L**andmark and **A**ppearance **P**riors” 的PyTorch官方方案的升级。
