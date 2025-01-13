@@ -33,6 +33,7 @@ class a():
     pass
 args=a()
 args.input='0.jpg'
+args.input='video/test1.mp4'
 args.audio='./audio/audio2.wav'
 args.output_dir='./result'
 args.static='True'
@@ -296,6 +297,10 @@ if not input_audio_path.endswith('.wav'):
     input_audio_path = '{}/temp.wav'.format(temp_dir)
 wav = audio.load_wav(input_audio_path, 16000)
 mel = audio.melspectrogram(wav)  # (H,W)   extract mel-spectrum
+if 1:
+    print('生成太慢了我们做一些截取')
+    mel=mel[:,:200]
+
 extra_left_columns = np.zeros((mel.shape[0], 8))  
 extra_right_columns = np.zeros((mel.shape[0], 8)) 
 mel = np.hstack([extra_left_columns, mel])
@@ -373,6 +378,7 @@ if 1:
             h, w = full_frame.shape[0], full_frame.shape[1]
             gray = cv2.cvtColor(full_frame, cv2.COLOR_BGR2GRAY) # detector函数返回脸的box
             faces = detector(gray, 0) # face= ([face.left, face.top] , [face.right,face.bottom] ) 对于脸这个box
+            # print(f'正在识别第{frame_idx}帧/{len(ori_background_frames_path)}')
             for face in faces:
                 x1, y1, x2, y2 = max(0,int(face.left()-(face.right()-face.left())*0.1)), max(0,int(face.top()+(face.top()-face.bottom())*0.3)), min(w,int(face.right()+(face.right()-face.left())*0.1)), min(h,int(face.bottom()-(face.top()-face.bottom())*0.3))   # x1,y1,x2,y2是对face向外做了一圈拓展. 左拓展宽度0.1, 右拓展0.1, 上拓展高0.3 下拓展高0.3
                 face_image = full_frame[y1:y2, x1:x2]
@@ -388,9 +394,10 @@ if 1:
                         file.write(landmarks_str)
 
                 else:
-                    print("No face dlib landmarks detected for this frame.")
+                    print("No face dlib landmarks detected for this frame.但是无所谓, 这里面识别多张脸会以第一张为准")
+                    # print(f"{frame_path},这个图片没识别到人脸,坐标:{x1, y1, x2, y2}")
                     results = face_mesh.process(cv2.cvtColor(full_frame, cv2.COLOR_BGR2RGB))
-                    if results.multi_face_landmarks:
+                    if results.multi_face_landmarks: #识别多张脸, 那么就重写一遍,所以无所谓,因为已经写过了.
                         landmarks_str = ''
                         face_landmarks = results.multi_face_landmarks[0]
                         for id, landmark in enumerate(face_landmarks.landmark):
