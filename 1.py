@@ -32,8 +32,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 class a():
     pass
 args=a()
-args.input='0.jpg'
-args.input='video/test1.mp4'
+
+args.input='shuzirendemo/section_1_045.94_049.95.mp4'
 args.audio='shuzirendemo/section_5_005.73_009.10.wav'
 args.output_dir='./result'
 args.static='True'
@@ -244,6 +244,7 @@ elif input_video_path.split('.')[1] in ['jpg', 'png', 'jpeg']: #if input a singl
         os.makedirs(folder_path,exist_ok=True)
         input_vid_len = len(ori_background_frames_path)
 else:
+    print('走视频')
     file_name = os.path.splitext(os.path.basename(input_video_path))[0]
     folder_path = os.path.join(input_video_run_path, file_name)
     if os.path.exists(folder_path):

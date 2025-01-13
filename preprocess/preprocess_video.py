@@ -314,5 +314,5 @@ def main():
     _ = [r.result() for r in tqdm(as_completed(futures_frames), total=len(futures_frames))]
     print("complete task!")
 
-if __name__ == '__main__':
-    main()
+
+process_video_file('video/test1.mp4')

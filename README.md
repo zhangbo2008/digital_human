@@ -1,4 +1,14 @@
 colab:https://colab.research.google.com/drive/1gnL_pOfawbPyFmIUuhWEP2EvtIaom1a4#scrollTo=evkOpLFnRGLk
+
+
+素材下载:
+https://weixinabcdefjqq.weixuke.com/thread-1422-1-1.html
+并且都是1080p的效果好.
+经过我的测试这份代码只有1080p时候效果才矮星.
+
+
+
+
 # LIP_MASK：具有地标和外观先验的保持身份的说话人脸生成（CVPR 2023）
 
 CVPR2023论文“**I**dentity-**P**reserving Talking Face Generation with **L**andmark and **A**ppearance **P**riors” 的PyTorch官方方案的升级。
