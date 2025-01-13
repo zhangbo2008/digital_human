@@ -34,7 +34,7 @@ class a():
 args=a()
 args.input='0.jpg'
 args.input='video/test1.mp4'
-args.audio='./audio/audio2.wav'
+args.audio='shuzirendemo/section_5_005.73_009.10.wav'
 args.output_dir='./result'
 args.static='True'
 args.landmark_gen_checkpoint_path='./checkpoints/landmark_checkpoint.pth'
@@ -297,7 +297,7 @@ if not input_audio_path.endswith('.wav'):
     input_audio_path = '{}/temp.wav'.format(temp_dir)
 wav = audio.load_wav(input_audio_path, 16000)
 mel = audio.melspectrogram(wav)  # (H,W)   extract mel-spectrum
-if 1:
+if 0:
     print('生成太慢了我们做一些截取')
     mel=mel[:,:200]
 

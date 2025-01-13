@@ -21,7 +21,7 @@ class a():
     pass
 args=a()
 args.process_num=6
-args.data_root='video'
+args.data_root='video/'
 args.out_root='lrs2_audio'
 
 
@@ -41,7 +41,7 @@ def process_audio_file(vfile, args):
     subprocess.run(command, shell=True)
     wav = audio.load_wav(wavpath, sample_rate)
     orig_mel = audio.melspectrogram(wav).T
-    np.save(path.join(fulldir, 'audio'), orig_mel)
+    np.save(path.join(fulldir, 'audio'), orig_mel) #保存mel序列.
 
 
 def mp_handler_audio(job):
@@ -56,7 +56,7 @@ def mp_handler_audio(job):
 
 def main(args):
     print("looking up paths.... from", args.data_root)
-    filelist = glob(path.join(args.data_root, '*/*.mp4'))
+    filelist = glob(path.join(args.data_root, '*.mp4'))
 
     jobs = [(vfile, args) for i, vfile in enumerate(filelist)]
     p_audio = ProcessPoolExecutor(args.process_num) # 进程数量是6个.
@@ -65,5 +65,16 @@ def main(args):
     _ = [r.result() for r in tqdm(as_completed(futures_audio), total=len(futures_audio))]
     print("complete, output to",args.out_root)
 
-if __name__ == '__main__':
-    main(args)
+# if __name__ == '__main__':
+#     main(args)
+
+
+
+
+
+
+
+
+
+#
+print('上面没用,直接跳过.')
