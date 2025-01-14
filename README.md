@@ -4,7 +4,7 @@ colab:https://colab.research.google.com/drive/1gnL_pOfawbPyFmIUuhWEP2EvtIaom1a4#
 素材下载:
 https://weixinabcdefjqq.weixuke.com/thread-1422-1-1.html
 并且都是1080p的效果好.
-经过我的测试这份代码只有1080p时候效果才矮星.
+经过我的测试这份代码只有1080p时候效果才行. 我分析是480p这种误差太高.会让嘴定位不准.
 
 
 
