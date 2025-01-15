@@ -394,7 +394,7 @@ import numpy as np
 from glob import glob
 from os.path import join, isfile
 import  random
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 from models import Landmark_generator as Landmark_transformer
 import argparse
 parser=argparse.ArgumentParser()
@@ -431,7 +431,7 @@ checkpoint_root = './checkpoints/landmark_generation/'
 checkpoint_dir = os.path.join(checkpoint_root, 'Pro_' + Project_name)
 reset_optimizer = False
 save_optimizer_state = True
-writer = SummaryWriter('tensorboard_runs/Project_{}'.format(Project_name))
+# writer = SummaryWriter('tensorboard_runs/Project_{}'.format(Project_name))
 #we arrange the landmarks in some order
 ori_sequence_idx=[162,127,234,93,132,58,172,136,150,149,176,148,152,377,400,378,379,365,397,288,361,323,454,356,389,  #
     70,63,105,66,107,55,65,52,53,46,#
@@ -650,9 +650,9 @@ def evaluate(model, val_data_loader):
             eval_L1_loss += criterion_L1(predict_content, T_content).item()
             eval_velocity_loss +=get_velocity_loss(predict_content, T_content).item()
             count += 1
-    writer.add_scalar('eval_L1_loss', eval_L1_loss / count, global_step)
+    # writer.add_scalar('eval_L1_loss', eval_L1_loss / count, global_step)
     print('eval_L1_loss', eval_L1_loss / count, 'global_step:', global_step)
-    writer.add_scalar('eval_velocity_loss', eval_velocity_loss / count, global_step)
+    # writer.add_scalar('eval_velocity_loss', eval_velocity_loss / count, global_step)
     print('eval_velocity_loss', eval_velocity_loss / count, 'global_step:', global_step)
 if 1:
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -727,8 +727,8 @@ if 1:
 
             prog_bar.set_description('epoch: %d step: %d running_L1_loss: %.4f  running_velocity_loss: %.4f '
                     % (global_epoch, global_step, running_L1_loss / (step + 1), running_velocity_loss / (step + 1)))
-            writer.add_scalar('running_L1_loss', running_L1_loss / (step + 1), global_step)
-            writer.add_scalar('running_velocity_loss', running_velocity_loss / (step + 1), global_step)
+            # writer.add_scalar('running_L1_loss', running_L1_loss / (step + 1), global_step)
+            # writer.add_scalar('running_velocity_loss', running_velocity_loss / (step + 1), global_step)
             global_step += 1
         global_epoch += 1
     print("end")

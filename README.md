@@ -1,3 +1,23 @@
+
+# 安装: 
+# 安装: conda install -c conda-forge dlib
+#  pip install mediapipe==0.10.9
+# 这个代码做了colab 适配,  colab也能跑.
+# 原始的训练代码在: https://github.com/Weizhi-Zhong/IP_LAP
+# 做了cuda, cpu的适配, 在本地可以直接跑. 用来学习整个结构.
+
+
+
+
+
+
+
+
+
+
+
+
+
 colab:https://colab.research.google.com/drive/1gnL_pOfawbPyFmIUuhWEP2EvtIaom1a4#scrollTo=evkOpLFnRGLk
 
 
