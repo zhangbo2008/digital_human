@@ -24,7 +24,7 @@ parser.add_argument('--dataset_video_root', type=str, required=False)
 parser.add_argument('--output_sketch_root', type=str, default='./lrs2_sketch128')
 parser.add_argument('--output_face_root', type=str, default='./lrs2_face128')
 parser.add_argument('--output_landmark_root', type=str, default='./lrs2_landmarks')
-
+parser.add_argument("-f","--file",default="file")#接收这个-f参数
 args = parser.parse_args()
 
 input_mp4_root = 'video'
@@ -344,6 +344,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--process_num', type=int, default=6) #number of process to preprocess the audio
 parser.add_argument("--data_root", type=str,help="Root folder of the LRS2 dataset", required=False)
 parser.add_argument("--out_root", help="output audio root", required=False)
+parser.add_argument("-f","--file",default="file")#接收这个-f参数
 args = parser.parse_args()
 args.out_root='lrs2_audio'
 
@@ -402,6 +403,7 @@ parser.add_argument('--pre_audio_root',default='...../Dataset/lrs2_preprocessed_
                     help='root path for preprocessed  audio')
 parser.add_argument('--landmarks_root',default='...../Dataset/lrs2_landmarks',
                     help='root path for preprocessed  landmarks')
+parser.add_argument("-f","--file",default="file")#接收这个-f参数
 args=parser.parse_args()
 args.pre_audio_root='lrs2_audio'
 args.landmarks_root='lrs2_landmarks'
@@ -419,7 +421,7 @@ finetune_path ='checkpoints/landmark_checkpoint.pth'
 num_workers = 0  #=========windows禁止并发才行.
 batch_size =128  # 512
 batch_size_val =128  #512
-evaluate_interval = 5000  #
+evaluate_interval = 1000  #
 checkpoint_interval = evaluate_interval
 mel_step_size = 16
 fps = 25
@@ -694,6 +696,7 @@ if 1:
         num_workers=num_workers,
         pin_memory=True
     )
+    print(f'每{checkpoint_interval}epoch保存一次')
     while global_epoch < 9999999999: #=====你这不如直接死循环得了.....
         prog_bar = tqdm(enumerate(train_data_loader), total=len(train_data_loader))
         running_L1_loss,running_velocity_loss=0.,0.
