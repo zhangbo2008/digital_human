@@ -8,6 +8,21 @@ https://weixinabcdefjqq.weixuke.com/thread-1422-1-1.html
 
 
 
+train2.py核心代码:
+712行:        
+    predict_content=model(T_mels, T_pose, Nl_pose, Nl_content)  #(B*T,2,57)
+    T_content=torch.cat([T_content[i] for i in range(T_content.size(0))],dim=0)
+
+    landmarks_generator模型输入当前mel,当前pose,其他帧pose,其他帧content, 输出当前帧content
+    T_content就是当前帧content的ground_true
+
+
+
+
+
+
+
+
 
 # LIP_MASK：具有地标和外观先验的保持身份的说话人脸生成（CVPR 2023）
 

@@ -91,11 +91,11 @@ class Fusion_transformer_encoder(nn.Module):
         position_v_encoding = self.position_v(pose_embedding)  # (1,  T, 512)
         position_a_encoding = self.position_a(mel_embedding)
 
-        #(2)  modality encoding
+        #(2)  modality encoding  #=====进行模态编码. 就是加上他_v表示是频 , 加上他_a表示音频
         modality_v = self.modality(1 * torch.ones((pose_embedding.size(0), self.T), dtype=torch.int).to(device))
         modality_a = self.modality(2 * torch.ones((mel_embedding.size(0),  self.T), dtype=torch.int).to(device))
 
-        pose_tokens = pose_embedding + position_v_encoding + modality_v    #(B , T, 512 )
+        pose_tokens = pose_embedding + position_v_encoding + modality_v    #(B , T, 512 )  #一个token表示 编码+位置编码+模态编码
         audio_tokens = mel_embedding + position_a_encoding + modality_a    #(B , T, 512 )
         ref_tokens = ref_embedding + self.modality(
             3 * torch.ones((ref_embedding.size(0), ref_embedding.size(1)), dtype=torch.int).to(device))
@@ -105,7 +105,7 @@ class Fusion_transformer_encoder(nn.Module):
         input_tokens = self.dropout(input_tokens)
 
         #(4) input to transformer
-        output = self.transformer_encoder(input_tokens)
+        output = self.transformer_encoder(input_tokens)  # 这里 25就表示seq_len了.
         return output
 
 
@@ -204,14 +204,14 @@ class Landmark_generator(nn.Module):
                 # (B,T,1,hv,wv) (B,T,2,74) (B,N_l,2,74)  (B,N_l,2,57)
         B,T,N_l= T_mels.size(0),T_mels.size(1),Nl_content.size(1)
 
-        #1. obtain full reference landmarks
+        #1. obtain full reference landmarks   # 得到ref landmark
         Nl_ref = torch.cat([Nl_pose, Nl_content], dim=3)  #(B,Nl,2,131=74+57)
         Nl_ref = torch.cat([Nl_ref[i] for i in range(Nl_ref.size(0))], dim=0)  # (B*Nl,2,131)
 
         T_mels=torch.cat([T_mels[i] for i in range(T_mels.size(0))],dim=0) #(B*T,1,hv,wv)
         T_pose = torch.cat([T_pose[i] for i in range(T_pose.size(0))],dim=0)  # (B*T,2,74)
 
-        # 2. get embedding
+        # 2. get embedding     B是batchsize, T是时间, 
         mel_embedding=self.mel_encoder(T_mels).squeeze(-1).squeeze(-1)#(B*T,512)
         pose_embedding=self.pose_encoder(T_pose).squeeze(-1)  # (B*T,512)
         ref_embedding = self.ref_encoder(Nl_ref).squeeze(-1)  # (B*Nl,512)
@@ -224,7 +224,7 @@ class Landmark_generator(nn.Module):
         pose_embedding = torch.stack(torch.split(pose_embedding, T), dim=0) # (B,T,512)
         ref_embedding=torch.stack(torch.split(ref_embedding,N_l,dim=0),dim=0) #(B,N_l,512)
 
-        #3. fuse embedding
+        #3. fuse embedding  # ref_embedding: [Nl_pose,Nl_content]   mel_embedding: T_mel       pose_embedding: T_pose
         output_tokens=self.fusion_transformer(ref_embedding,mel_embedding,pose_embedding)
 # 1,25,512
         #4.output  landmark
