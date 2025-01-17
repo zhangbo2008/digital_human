@@ -3,7 +3,7 @@ import librosa.filters
 import numpy as np
 from scipy import signal
 from scipy.io import wavfile
-import lws
+#import lws
 
 class HParams:
     def __init__(self, **kwargs):
